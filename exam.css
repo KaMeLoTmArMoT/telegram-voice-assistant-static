@@ -1,0 +1,177 @@
+/* TMA exam overlay (Teil 1 / Teil 3). Split from styles.css. */
+/* ==========================================================================
+   EXAM MODE (Teil 1 / Teil 3 cards + timer) — progressive enhancement
+   ========================================================================== */
+.exam-phase-tag {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.35);
+    padding: 4px 9px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.exam-timer-pill {
+    font-size: 11px;
+    font-weight: 700;
+    color: #a7f3d0;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    padding: 4px 9px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+
+.exam-manual-bar {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+    padding: 6px 0 2px;
+}
+
+.exam-manual-btn {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    color: #fde68a;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.exam-manual-btn:hover {
+    background: rgba(251, 191, 36, 0.2);
+}
+
+.exam-time-summary {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    padding: 2px 0;
+}
+
+.exam-sum-chip {
+    font-size: 11px;
+    color: var(--subtext-color);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 3px 9px;
+}
+
+.exam-sum-chip b {
+    color: var(--text-color);
+}
+
+.exam-card-header-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.btn-close-sm {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-color);
+    border-radius: 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.exam-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.exam-topic-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 12px;
+    padding: 12px;
+    cursor: pointer;
+    color: var(--text-color);
+    width: 100%;
+}
+
+.exam-topic-btn:hover {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.exam-topic-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: #c4b5fd;
+    text-transform: uppercase;
+}
+
+.exam-topic-text {
+    font-size: 13.5px;
+    line-height: 1.45;
+}
+
+.exam-topic-hint {
+    font-size: 10.5px;
+    color: var(--subtext-color);
+    font-style: italic;
+}
+
+.exam-full-topic {
+    font-size: 16px;
+    line-height: 1.55;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.exam-situation {
+    font-size: 13.5px;
+    line-height: 1.5;
+    background: rgba(251, 191, 36, 0.08);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.exam-points {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.exam-card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding-top: 4px;
+}
+
+#exam-card-sheet.exam-fullscreen {
+    width: 100%;
+    max-width: 100%;
+    height: 92vh;
+    max-height: 92vh;
+}
+
+#exam-card-sheet.exam-fullscreen .exam-full-topic {
+    font-size: 18px;
+}

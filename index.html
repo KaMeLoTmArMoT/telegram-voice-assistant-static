@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Voice Recorder & AI Assistant</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./tma_base.css">
+    <link rel="stylesheet" href="./tma_dialog.css">
+    <link rel="stylesheet" href="./tma_live.css">
+    <link rel="stylesheet" href="./exam.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- TOP APP NAVIGATION TABS (Visible when Admin) -->
+        <nav id="app-mode-tabs" class="app-mode-tabs hidden">
+            <button id="tab-recorder" class="app-tab-btn active">
+                <span class="tab-icon">🎙</span> Диктофон
+            </button>
+            <button id="tab-dialog" class="app-tab-btn">
+                <span class="tab-icon">📻</span> Рація
+                <span class="tab-badge">PTT</span>
+            </button>
+            <button id="tab-live" class="app-tab-btn">
+                <span class="tab-icon">⚡</span> Live
+                <span class="tab-badge live-badge">GEMINI</span>
+            </button>
+        </nav>
+
+        <!-- GLOBAL TOAST FEEDBACK NOTIFICATION -->
+        <div id="toast-notification" class="toast-notification hidden">
+            <span id="toast-icon">🚀</span>
+            <span id="toast-text">Recording uploaded to queue</span>
+        </div>
+
+        <!-- RECORDER SCREEN -->
+        <section id="recorder-screen" class="screen active">
+            <header class="header">
+                <div class="status-badge" id="status-badge">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Ready to record</span>
+                </div>
+                <div class="quota-badge" id="quota-badge" title="Daily AI & Audio Quota">
+                    <span id="quota-icon">⚡</span>
+                    <span id="quota-text">...</span>
+                </div>
+            </header>
+
+            <main class="recorder-main">
+                <div class="timer-display" id="timer-display">00:00</div>
+
+                <div class="visualizer-container">
+                    <canvas id="waveform-canvas"></canvas>
+                </div>
+
+                <div class="controls-container">
+                    <button id="btn-record" class="btn btn-record" title="Start / Pause / Resume">
+                        <div id="record-core" class="record-core"></div>
+                        <svg id="icon-pause" width="28" height="28" viewBox="0 0 24 24" fill="var(--danger-color)" class="hidden">
+                            <rect x="6" y="4" width="4" height="16" rx="1"/>
+                            <rect x="14" y="4" width="4" height="16" rx="1"/>
+                        </svg>
+                        <svg id="icon-play" width="28" height="28" viewBox="0 0 24 24" fill="var(--danger-color)" class="hidden">
+                            <polygon points="5,3 19,12 5,21"/>
+                        </svg>
+                    </button>
+
+                    <button id="btn-stop" class="btn btn-primary btn-icon hidden" title="Finish & Transcribe">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="5" y="5" width="14" height="14" rx="2"/>
+                        </svg>
+                    </button>
+
+                    <button id="btn-eco" class="btn btn-secondary btn-icon hidden" title="Energy Saver (Dim screen)">
+                        <svg id="icon-eco-moon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                        <svg id="icon-eco-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="hidden">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                    </button>
+                </div>
+
+                <div id="eco-wake-hint" class="eco-wake-hint hidden" title="Tap to wake screen">
+                    <span>🌙 Energy Saver Active • Tap to wake</span>
+                </div>
+
+                <!-- ACTIVE & RECENT JOBS QUEUE -->
+                <div id="jobs-container" class="jobs-container hidden">
+                    <div class="jobs-header">
+                        <h4>⚡ Processing Queue</h4>
+                        <span id="jobs-count-badge" class="jobs-badge">0 active</span>
+                    </div>
+                    <div id="jobs-list" class="jobs-list">
+                        <!-- Job items dynamically rendered here -->
+                    </div>
+                </div>
+            </main>
+
+            <footer class="footer-hint">
+                <span>💡 Screen stays awake during recording</span>
+                <div id="app-version-tag" class="app-version-tag"></div>
+            </footer>
+        </section>
+
+        <!-- PROCESSING SCREEN -->
+        <section id="processing-screen" class="screen">
+            <div class="processing-card">
+                <div class="spinner"></div>
+                <h3 id="processing-title">Processing audio...</h3>
+                <p id="processing-subtitle">Groq Whisper transcribing audio</p>
+            </div>
+        </section>
+
+        <!-- RESULT SCREEN -->
+        <section id="result-screen" class="screen">
+            <header class="header result-header">
+                <button id="btn-back" class="btn-text">← New Recording</button>
+                <h2>Transcript</h2>
+                <button id="btn-copy" class="btn-text">Copy</button>
+            </header>
+
+            <main class="result-main">
+                <div class="transcript-box" id="transcript-box">
+                    <!-- Text output -->
+                </div>
+
+                <div class="action-buttons">
+                    <button id="btn-summary" class="btn btn-action">
+                        <span>📝</span> Summary
+                    </button>
+                    <button id="btn-custom-q" class="btn btn-action">
+                        <span>❓</span> Custom Question
+                    </button>
+                </div>
+
+                <div id="ai-response-card" class="ai-card hidden">
+                    <div class="ai-card-header">
+                        <h4 id="ai-card-title">AI Analysis</h4>
+                        <button id="btn-close-ai" class="btn-close">&times;</button>
+                    </div>
+                    <div class="ai-card-body" id="ai-card-body">
+                        <!-- AI output -->
+                    </div>
+                </div>
+
+                <!-- Custom Question Modal/Container -->
+                <div id="question-modal" class="modal-card hidden">
+                    <h4>Ask a question about the conversation:</h4>
+                    <textarea id="input-custom-question" placeholder="e.g., What were the main agreements and deadlines?" rows="3"></textarea>
+                    <div class="modal-buttons">
+                        <button id="btn-cancel-q" class="btn btn-secondary">Cancel</button>
+                        <button id="btn-send-q" class="btn btn-primary">Ask AI</button>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- LIVE DIALOGUE & WALKIE-TALKIE SCREEN -->
+        <section id="dialog-screen" class="screen">
+            <header class="dialog-header">
+                <div class="dialog-chat-picker" id="dialog-chat-picker">
+                    <button id="btn-dialog-select-chat" class="btn-chat-selector">
+                        <span class="chat-icon">💬</span>
+                        <span id="dialog-active-chat-title">Головний чат</span>
+                        <span class="arrow-down">▾</span>
+                    </button>
+                </div>
+                <div class="dialog-header-actions">
+                    <button type="button" class="dialog-persona-chip" id="btn-dialog-persona-chip" title="Обрати сценарій або режим бесіди">
+                        <span id="dialog-persona-chip-text">🎙️ UA</span>
+                    </button>
+                    <button id="btn-dialog-export" class="btn-dialog-header-action" title="Надіслати історію бесіди в Telegram">
+                        <span>📤</span> В TG
+                    </button>
+                    <button type="button" class="dialog-context-chip" id="dialog-context-chip" title="Активний контекст бесіди (клікніть для детальної статистики)">
+                        <span class="chip-icon">🧠</span>
+                        <span id="dialog-context-tokens">~0 tok</span>
+                    </button>
+                </div>
+            </header>
+
+            <main class="dialog-main">
+                <!-- MESSAGES STREAM -->
+                <div id="dialog-messages-feed" class="dialog-messages-feed">
+                    <div class="dialog-welcome-bubble">
+                        <div class="welcome-icon">📻</div>
+                        <h4>Режим Рації активовано</h4>
+                        <p>Затискай кнопку мікрофона і говори. Бот миттєво відповість голосом.</p>
+                    </div>
+                </div>
+
+                <!-- LIVE CONTROLS -->
+                <div class="dialog-controls-container">
+                    <div id="dialog-audio-visualizer-ring" class="dialog-visualizer-ring">
+                        <div class="pulse-ring"></div>
+                        <div class="pulse-ring delay-1"></div>
+                        <button id="btn-dialog-talk" class="btn-dialog-talk" title="Push to talk (Hold or Tap)">
+                            <div class="talk-mic-icon">
+                                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
+                    <div id="dialog-status-hint" class="dialog-status-hint">
+                        <span>Натисни або затисни, щоб говорити</span>
+                    </div>
+
+                    <div class="dialog-text-input-row">
+                        <input type="text" id="dialog-text-input" placeholder="Або напиши повідомлення..." autocomplete="off" />
+                        <button id="btn-dialog-send-text" class="btn-send-text" title="Надіслати">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13"></line>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- GEMINI MULTIMODAL LIVE AUDIO SCREEN -->
+        <section id="live-screen" class="screen">
+            <header class="live-header">
+                <div class="live-status-pill" id="live-status-pill">
+                    <span class="status-dot live-dot" id="live-status-dot"></span>
+                    <span id="live-status-text">Відключено</span>
+                </div>
+
+                <!-- LIVE REAL-TIME VU METER (MIC & MODEL) -->
+                <div class="live-vu-container" id="live-vu-container" title="Індикатор аудіоактивності: Мікрофон (зелений) | Gemini (блакитний)">
+                    <div class="vu-channel">
+                        <span class="vu-label">🎙️</span>
+                        <div class="vu-track"><div class="vu-bar vu-bar-mic" id="vu-mic-bar"></div></div>
+                    </div>
+                    <div class="vu-channel">
+                        <span class="vu-label">⚡</span>
+                        <div class="vu-track"><div class="vu-bar vu-bar-model" id="vu-model-bar"></div></div>
+                    </div>
+                </div>
+
+                <div class="live-header-actions">
+                    <span id="exam-phase-tag" class="exam-phase-tag hidden">🎓</span>
+                    <span id="exam-timer-pill" class="exam-timer-pill hidden" title="Час фази іспиту / загальний">
+                        <span id="exam-timer-text">⏱ 0:00</span>
+                    </span>
+                    <button id="btn-live-settings-toggle" class="btn-live-settings-toggle" title="Налаштування моделі, звуку та голосу">
+                        ⚙️ Налаштування
+                    </button>
+                </div>
+            </header>
+
+            <main class="live-main">
+                <!-- LIVE RESUME BANNER (shown when continuing session from Telegram link) -->
+                <div id="live-resume-banner" class="live-resume-banner hidden">
+                    <div class="live-resume-content">
+                        <span class="live-resume-icon">🔄</span>
+                        <div class="live-resume-info">
+                            <strong id="live-resume-title">Продовження бесіди</strong>
+                            <span id="live-resume-detail">Завантаження контексту...</span>
+                        </div>
+                    </div>
+                    <button id="btn-live-resume-dismiss" class="btn-close-sm" title="Скинути контекст і почати з нуля">&times;</button>
+                </div>
+
+                <!-- LIVE SETTINGS (Persona, Model, Audio Profile, Gain, Thinking, Voice, Pace, Echo Guard, Search, Mock) -->
+                <div class="live-settings-panel" id="live-settings-panel">
+                    <div class="live-setting-group">
+                        <label class="live-setting-label">Сценарій:</label>
+                        <button type="button" id="btn-live-persona-picker" class="btn-live-persona-picker" title="Вибрати сценарій або налаштувати конструктор">
+                            <span id="live-persona-picker-text">🎙️ Українська</span>
+                        </button>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="select-live-model" class="live-setting-label">Модель:</label>
+                        <select id="select-live-model" class="live-select">
+                            <option value="gemini-3.8-live" selected>⚡ Gemini 3.8 Live</option>
+                            <option value="gemini-3.8-live-extended-thinking">🧠 3.8 Extended Thinking</option>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="select-live-audio-profile" class="live-setting-label" title="Навушники вимикають вузькосмуговий телефонний профіль (AEC/NS) для кришталевого звуку та чутливості">Аудіо:</label>
+                        <select id="select-live-audio-profile" class="live-select">
+                            <option value="headphones" selected>🎧 Навушники (Studio Clean)</option>
+                            <option value="speaker">🔊 Динамік (AEC/DSP)</option>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="select-live-mic-gain" class="live-setting-label" title="Підсилення мікрофона та компресор тихого голосу">Чутливість:</label>
+                        <select id="select-live-mic-gain" class="live-select">
+                            <option value="1.0">Нормальна (1x)</option>
+                            <option value="1.8" selected>Підвищена (+5 dB)</option>
+                            <option value="2.8">Тихий голос (+9 dB)</option>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group hidden" id="group-thinking-level">
+                        <label for="select-live-thinking-level" class="live-setting-label">Мислення:</label>
+                        <select id="select-live-thinking-level" class="live-select">
+                            <option value="low" selected>Низьке (Low)</option>
+                            <option value="medium">Середнє (Medium)</option>
+                            <option value="high">Високе (High)</option>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="select-live-voice" class="live-setting-label">Голос:</label>
+                        <select id="select-live-voice" class="live-select">
+                            <optgroup label="Жіночі / Вищі тембри">
+                                <option value="Aoede" selected>Aoede (Теплий, розмовний)</option>
+                                <option value="Kore">Kore (Спокійний, впевнений)</option>
+                                <option value="Zephyr">Zephyr (Яскравий)</option>
+                                <option value="Leda">Leda (Молодий)</option>
+                                <option value="Autonoe">Autonoe (Світлий)</option>
+                                <option value="Callirrhoe">Callirrhoe (Невимушений)</option>
+                                <option value="Enceladus">Enceladus (М'який)</option>
+                                <option value="Sulafat">Sulafat (Глибокий теплий)</option>
+                            </optgroup>
+                            <optgroup label="Чоловічі / Нижчі тембри">
+                                <option value="Puck">Puck (Бадьорий)</option>
+                                <option value="Fenrir">Fenrir (Енергійний)</option>
+                                <option value="Charon">Charon (Дикторський)</option>
+                                <option value="Orus">Orus (Твердий)</option>
+                                <option value="Iapetus">Iapetus (Чіткий)</option>
+                                <option value="Algieba">Algieba (Оксамитовий)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="select-live-pace" class="live-setting-label">Темп:</label>
+                        <select id="select-live-pace" class="live-select">
+                            <option value="calm">Спокійний / Виважений</option>
+                            <option value="normal" selected>Звичайний</option>
+                            <option value="fast">Швидкий / Динамічний</option>
+                        </select>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="toggle-live-echoguard" class="live-setting-label" title="Запобігає самоперебиванню асистента при грі через динамік без навушників">Анти-відлуння:</label>
+                        <button id="toggle-live-echoguard" class="btn-echoguard-toggle active" title="Захист від перебивання власним звуком динаміка">
+                            🛡️ Авто
+                        </button>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label for="toggle-live-search" class="live-setting-label" title="Пошук у реальному часі через Google Search Grounding (підтримується обома моделями)">Google Search:</label>
+                        <button type="button" id="toggle-live-search" class="btn-search-toggle" title="Увімкнути / вимкнути пошук свіжих даних у Google">
+                            🔍 Вимк
+                        </button>
+                    </div>
+
+                    <div class="live-setting-group">
+                        <label class="live-setting-label">Mock API:</label>
+                        <button id="btn-live-mock-toggle" class="btn-live-mock-badge" title="Увімкнути / вимкнути Mock режим без Google API">
+                            🧪 Mock: OFF
+                        </button>
+                    </div>
+
+                    <!-- ACTIVE AUDIO DEVICE INFO BADGE -->
+                    <div class="live-device-status" id="live-device-status">
+                        <span class="live-device-icon">🎙️</span>
+                        <span class="live-device-label" id="live-device-label">Аудіодевайс: очікування...</span>
+                    </div>
+                </div>
+
+                <!-- EXPANDED LIVE TRANSCRIPT FEED / CAPTION BOX -->
+                <div id="live-caption-box" class="live-caption-box">
+                    <div class="live-caption-header">
+                        <div class="live-caption-title-group">
+                            <span class="live-caption-title">💬 Стенограма</span>
+                            <button id="btn-live-copy-transcript" class="btn-copy-live-transcript" title="Скопіювати всю стенограму розмови">
+                                📋 Копіювати
+                            </button>
+                        </div>
+                        <span id="live-speaker-label" class="live-speaker-tag">Очікування...</span>
+                    </div>
+                    <div id="live-transcript-feed" class="live-transcript-feed">
+                        <div class="live-feed-placeholder" id="live-feed-placeholder">
+                            Натисніть кнопку початку розмови та говоріть вільно.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSION USAGE & COST STATS PILL (UPDATED IN REAL TIME / ON END) -->
+                <div id="live-usage-stats-card" class="live-usage-stats-card hidden">
+                    <div class="live-usage-stats-row">
+                        <div class="live-stat-chip">⏱ <span id="live-stat-duration">0:00</span></div>
+                        <div class="live-stat-chip">📥 <span id="live-stat-tokens-in">0</span> tok</div>
+                        <div class="live-stat-chip">📤 <span id="live-stat-tokens-out">0</span> tok</div>
+                        <div class="live-stat-chip highlight">💰 <span id="live-stat-cost">~$0.000</span></div>
+                    </div>
+                </div>
+
+                <!-- EXAM MANUAL CONTROLS (independent of LLM tools; hidden unless exam persona) -->
+                <div id="exam-manual-bar" class="exam-manual-bar hidden">
+                    <button type="button" id="exam-btn-manual-teil1" class="exam-manual-btn" title="Показати 2 теми Teil 1">🎲 Teil 1</button>
+                    <button type="button" id="exam-btn-manual-teil3" class="exam-manual-btn" title="Показати картку Teil 3">📋 Teil 3</button>
+                    <button type="button" id="exam-btn-manual-timer" class="exam-manual-btn" title="Старт/стоп таймера фази">⏱ Старт/Стоп</button>
+                    <button type="button" id="exam-btn-manual-eval" class="exam-manual-btn" title="Оцінити виступ за telc-критеріями (KI, тільки текст)">📊 Bewerten</button>
+                </div>
+                <div id="exam-time-summary" class="exam-time-summary hidden"></div>
+
+                <!-- COMPACT DICTAPHONE-STYLE CONTROLS -->
+                <div class="live-compact-controls">
+                    <!-- IDLE CONNECT BUTTON -->
+                    <div id="live-idle-control" class="live-idle-control">
+                        <div class="live-idle-buttons-row">
+                            <button id="btn-live-toggle" class="btn-live-start" title="Почати Live сесію">
+                                <div class="live-start-icon">⚡</div>
+                                <span class="live-start-text" id="live-session-title">Почати Live</span>
+                            </button>
+                            <button id="btn-live-idle-export" class="btn-live-idle-export hidden" title="Надіслати попередню стенограму та аудіо в Telegram">
+                                <span>📤</span> В TG
+                            </button>
+                        </div>
+                        <p id="live-session-desc" class="live-hint-text">Повний дуплекс. Говори вільно, перебивай у будь-який момент.</p>
+                    </div>
+
+                    <!-- ACTIVE CONTROLS BAR (Shown when connected, matching Dictaphone tactile circles) -->
+                    <div class="live-controls-bar hidden" id="live-controls-bar">
+                        <button id="btn-live-mute" class="btn btn-live-circle btn-live-circle-sm" title="Mute / Unmute Mic">
+                            <span id="live-mute-icon" class="btn-live-circle-icon">🎤</span>
+                            <span id="live-mute-text" class="btn-live-circle-label">Мік ON</span>
+                        </button>
+                        <button id="btn-live-disconnect" class="btn btn-live-circle btn-live-circle-lg" title="Завершити Live розмову">
+                            <div class="stop-core"></div>
+                        </button>
+                        <button id="btn-live-export" class="btn btn-live-circle btn-live-circle-sm disabled" title="Надіслати стенограму та стерео-запис в Telegram" disabled>
+                            <span class="btn-live-circle-icon">📤</span>
+                            <span class="btn-live-circle-label">В TG</span>
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- CHAT DRAWER / MODAL (Moved to root overlay container) -->
+        <div id="dialog-chat-modal" class="dialog-modal-overlay hidden">
+            <div class="dialog-modal-sheet">
+                <div class="dialog-modal-header">
+                    <h3>💬 Твої теми / чати</h3>
+                    <button id="btn-dialog-close-modal" class="btn-close">&times;</button>
+                </div>
+
+                <div class="dialog-modal-body">
+                    <div id="dialog-chats-list" class="dialog-chats-list">
+                        <!-- Injected dynamically -->
+                    </div>
+
+                    <div class="dialog-modal-actions">
+                        <button id="btn-dialog-modal-new" class="btn btn-primary">
+                            <span>➕</span> Новий чат
+                        </button>
+                        <button id="btn-dialog-modal-rename" class="btn btn-secondary">
+                            <span>✏️</span> Перейменувати
+                        </button>
+                        <button id="btn-dialog-modal-del" class="btn btn-danger">
+                            <span>🗑</span> Видалити
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEXT STATS MODAL SHEET (Moved to root overlay container) -->
+        <div id="dialog-stats-modal" class="dialog-modal-overlay hidden">
+            <div class="dialog-modal-sheet">
+                <div class="dialog-modal-header">
+                    <h3 id="dialog-stats-title">📊 Контекст бесіди</h3>
+                    <button id="btn-dialog-close-stats-modal" class="btn-close">&times;</button>
+                </div>
+
+                <div class="dialog-modal-body">
+                    <div class="dialog-stats-pills">
+                        <div class="dialog-stat-pill">
+                            <span class="stat-pill-label">Свіжі репліки</span>
+                            <span class="stat-pill-val" id="stat-fresh-tokens">0 tok</span>
+                        </div>
+                        <div class="dialog-stat-pill">
+                            <span class="stat-pill-label">У summary</span>
+                            <span class="stat-pill-val" id="stat-summary-tokens">0 tok</span>
+                        </div>
+                        <div class="dialog-stat-pill">
+                            <span class="stat-pill-label">Всього в промпті</span>
+                            <span class="stat-pill-val" id="stat-total-tokens">0 tok</span>
+                        </div>
+                    </div>
+
+                    <div class="dialog-stats-summary-card">
+                        <div class="dialog-stats-summary-header">
+                            <span>🧠 Довготривала пам'ять</span>
+                            <button id="btn-copy-stats-summary" class="btn-text btn-copy-summary" title="Скопіювати summary">Копіювати</button>
+                        </div>
+                        <div id="dialog-stats-summary-text" class="dialog-stats-summary-text">
+                            Поки що немає (розмова коротка)
+                        </div>
+                    </div>
+
+                    <div class="dialog-modal-actions">
+                        <button id="btn-dialog-close-stats-action" class="btn btn-secondary" style="width: 100%;">
+                            Закрити
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PERSONA / SCENARIO SELECTOR & CONSTRUCTOR MODAL -->
+        <div id="persona-selector-modal" class="dialog-modal-overlay hidden">
+            <div class="dialog-modal-sheet persona-modal-sheet">
+                <div class="dialog-modal-header">
+                    <h3>🎭 Режим та сценарій бесіди</h3>
+                    <button id="btn-close-persona-modal" class="btn-close">&times;</button>
+                </div>
+
+                <div class="dialog-modal-body">
+                    <p class="persona-modal-subtitle">Оберіть готовий пресет або налаштуйте власний конструктор для Рації та Live режиму:</p>
+
+                    <!-- QUICK PRESETS GRID -->
+                    <div class="persona-presets-grid" id="persona-presets-grid">
+                        <!-- Rendered by persona_engine / app.js -->
+                    </div>
+
+                    <!-- CUSTOM CONSTRUCTOR ACCORDION -->
+                    <div class="persona-constructor-card">
+                        <button type="button" class="constructor-header" id="btn-toggle-constructor">
+                            <span>🛠️ Власний конструктор</span>
+                            <span id="constructor-arrow" class="constructor-arrow">▾</span>
+                        </button>
+                        <div class="constructor-body hidden" id="constructor-body">
+                            <div class="constructor-row">
+                                <label for="constructor-lang">Мова спілкування:</label>
+                                <select id="constructor-lang" class="live-select">
+                                    <option value="de" selected>🇩🇪 Німецька (Deutsch)</option>
+                                    <option value="en">🇬🇧 Англійська (English)</option>
+                                    <option value="fr">🇫🇷 Французька (Français)</option>
+                                    <option value="uk">🇺🇦 Українська</option>
+                                </select>
+                            </div>
+
+                            <div class="constructor-row">
+                                <label for="constructor-level">Рівень володіння:</label>
+                                <select id="constructor-level" class="live-select">
+                                    <option value="B1">B1 (Середній)</option>
+                                    <option value="B2" selected>B2 (Вище середнього)</option>
+                                    <option value="C1">C1 (Просунутий)</option>
+                                    <option value="Native">Native (Носій)</option>
+                                </select>
+                            </div>
+
+                            <div class="constructor-row">
+                                <label for="constructor-role">Роль асистента:</label>
+                                <select id="constructor-role" class="live-select">
+                                    <option value="examiner">🎓 Екзаменатор (Prüfer telc/Goethe)</option>
+                                    <option value="tutor" selected>🧑‍🏫 Викладач / Репетитор (Tutor)</option>
+                                    <option value="colleague">💼 Колега / Tech співбесіда</option>
+                                    <option value="friend">☕ Друг (Tandem partner)</option>
+                                </select>
+                            </div>
+
+                            <div class="constructor-row">
+                                <label for="constructor-correction">Виправлення помилок:</label>
+                                <select id="constructor-correction" class="live-select">
+                                    <option value="recast" selected>М'яке (Recasting у відповіді)</option>
+                                    <option value="explicit">Явне ("💡 Besser: ...")</option>
+                                    <option value="none">Без виправлень (тільки бесіда)</option>
+                                </select>
+                            </div>
+
+                            <button type="button" id="btn-apply-constructor" class="btn btn-primary btn-apply-constructor">
+                                Застосувати конструктор
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- EXAM CARD MODAL (progressive enhancement; safe to miss) -->
+        <div id="exam-card-modal" class="dialog-modal-overlay hidden">
+            <div class="dialog-modal-sheet persona-modal-sheet" id="exam-card-sheet">
+                <div class="dialog-modal-header">
+                    <h3 id="exam-card-title">🎓 Prüfung</h3>
+                    <div class="exam-card-header-actions">
+                        <button id="exam-card-toggle-size" class="btn-close-sm" title="На весь екран / згорнути">⛶</button>
+                        <button id="exam-card-min" class="btn-close-sm" title="Згорнути картку">—</button>
+                        <button id="exam-card-close" class="btn-close" title="Закрити">&times;</button>
+                    </div>
+                </div>
+                <div class="dialog-modal-body">
+                    <div id="exam-card-body" class="exam-card-body"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./version.js"></script>
+    <script src="./tma_common.js"></script>
+    <script src="./persona_engine.js"></script>
+    <script src="./exam_content.js"></script>
+    <script src="./exam_ui.js"></script>
+    <script src="./tma_recorder.js"></script>
+    <script src="./tma_jobs.js"></script>
+    <script src="./tma_dialog.js"></script>
+    <script src="./live_session.js"></script>
+    <script src="./live_audio.js"></script>
+</body>
+</html>
